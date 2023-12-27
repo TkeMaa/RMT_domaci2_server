@@ -1,26 +1,22 @@
 package server;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.EOFException;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.GregorianCalendar;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.ListIterator;
 
 public class ClientHandler extends Thread {
 	
@@ -48,35 +44,40 @@ public class ClientHandler extends Thread {
 			
 			klijentOutput.println("Veza uspesno uspostavljena");
 			
-			int opcija;
+			String opcija;
 			
 			while (true) {
 				
 				meni();
 
-				opcija = Integer.parseInt(klijentInput.readLine());				
+				opcija = klijentInput.readLine();
 				
 				switch (opcija) {
-					case 1: 
+					case "1": 
 						klijentOutput.println("Odabrali ste uplatu humanitarne pomoci");
 						uplata(klijentOutput, klijentInput);
 						break;				
-					case 2:
+					case "2":
 						klijentOutput.println("Odabrali ste registraciju");
 						registracija();
 					break;
-					case 3:
+					case "3":
 						klijentOutput.println("Odabrali ste prijavljivanje");
 						prijava();
 						break;
-					case 4:
+					case "4":
 						klijentOutput.println("Odabrali ste pregled ukupno sakpljenih sredstava");
 						pregledSredstava();
 						break;
-					case 5:
+					case "5":
+					if (prijavljen) {
 						klijentOutput.println("Odabrali ste pregled transakcija");
-						break;
-					case 6:						
+						pregledTransakcija();
+					} else {
+						klijentOutput.println("Morate biti prijavljeni da biste imali pristup ovoj opciji!");
+					}
+					break;
+					case "6":						
 						klijentOutput.println("***izlaz***");
 						soketZaKomunikaciju.close();
 						return;
@@ -100,7 +101,7 @@ public class ClientHandler extends Thread {
 		klijentOutput.println("4. Pregled ukupno sakupljenih sredstava");
 		klijentOutput.println("5. Pregled transakcija");
 		klijentOutput.println("6. Izlaz");
-		
+						
 	}
 	
 	private void uplata(PrintStream klijentOutput, BufferedReader klijentInput) {
@@ -117,11 +118,12 @@ public class ClientHandler extends Thread {
 			   adresa = null,
 			   brKartice = null, 
 			   cvv = null, 
-			   iznos = null;				
+			   iznos = null;
 		
-		while (!imeIsValid) {
-			try {
-				
+		GregorianCalendar datumVreme = null;
+			
+		try {
+			while (!imeIsValid) {
 				klijentOutput.println("Unesite ime: ");
 				ime = klijentInput.readLine();
 				if (ime == null || ime.contains(" ") || ime.isBlank()) {
@@ -129,15 +131,14 @@ public class ClientHandler extends Thread {
 					continue;
 				}
 				imeIsValid = true;
-				
-			} catch (IOException e) {
-				e.printStackTrace();
-			}			
-		}
+			}
+		} catch (IOException e) {
+			klijentOutput.println("Greska prilikom unosa!");
+			return;
+		}			
 		
-		while (!prezimeIsValid) {
-			try {
-				
+		try {
+			while (!prezimeIsValid) {
 				klijentOutput.println("Unesite prezime: ");
 				prezime = klijentInput.readLine();
 				if (prezime == null || ime.contains(" ") || prezime.isBlank()) {
@@ -145,15 +146,14 @@ public class ClientHandler extends Thread {
 					continue;
 				}
 				prezimeIsValid = true;	
-				
-			} catch (IOException e) {
-				e.printStackTrace();
-			}			
-		}
+			}
+		} catch (IOException e) {
+			klijentOutput.println("Greska prilikom unosa!");
+			return;
+		}			
 		
-		while (!adresaIsValid) {
-			try {
-				
+		try {
+			while (!adresaIsValid) {
 				klijentOutput.println("Unesite adresu: ");
 				adresa = klijentInput.readLine();
 				if (adresa == null || adresa.isBlank()) {
@@ -161,15 +161,14 @@ public class ClientHandler extends Thread {
 					continue;
 				}
 				adresaIsValid = true;	
-				
-			} catch (IOException e) {
-				e.printStackTrace();
-			}			
-		}
+			}
+		} catch (IOException e) {
+			klijentOutput.println("Greska prilikom unosa!");
+			return;
+		}			
 		
-		while (!brKarticeIsValid) {
-			try {
-				
+		try {
+			while (!brKarticeIsValid) {
 				klijentOutput.println("Unesite broj kartice u formatu XXXX-XXXX-XXXX-XXXX: ");
 				brKartice = klijentInput.readLine();
 				if (brKartice == null || !brKartice.matches("\\d{4}-\\d{4}-\\d{4}-\\d{4}")) {
@@ -181,16 +180,15 @@ public class ClientHandler extends Thread {
 					continue;
 				}
 				brKarticeIsValid = true;
-				
-			} catch (IOException e) {
-				e.printStackTrace();
-			}			
-		}
+			}
+		} catch (IOException e) {
+			klijentOutput.println("Greska prilikom unosa!");
+			return;
+		}			
 		
 		if (!prijavljen) {
-			while (!cvvIsValid) {
-				try {
-					
+			try {
+				while (!cvvIsValid) {
 					klijentOutput.println("Unesite CVV broj(trocifren broj): ");
 					cvv = klijentInput.readLine();
 					if (cvv == null || !cvv.matches("\\d{3}")) {
@@ -202,30 +200,49 @@ public class ClientHandler extends Thread {
 						continue;
 					}
 					cvvIsValid = true;
-					
-				} catch (IOException e) {
-					e.printStackTrace();
-				}			
-			}
+				}
+			} catch (IOException e) {
+				klijentOutput.println("Greska prilikom unosa!");
+				return;
+			}			
 		}
 		
-		while (!iznosIsValid) {
-			try {
-				
+		try {
+			while (!iznosIsValid) {
 				klijentOutput.println("Unesite iznos: ");
 				iznos = klijentInput.readLine();
-				if (iznos == null || Integer.parseInt(iznos) < 200) {
+				if (iznos == null || iznos.isBlank() || Integer.parseInt(iznos) < 200) {
 					klijentOutput.println("Minimalan iznos je 200 dinara!");
 					continue;
 				}
 				iznosIsValid = true;
-				
-			} catch (IOException e) {
-				e.printStackTrace();
-			}			
-		}
+			}
+		} catch (IOException e) {
+			klijentOutput.println("Greska prilikom unosa!");
+			return;
+		}			
 		
 		azurirajUkupno(iznos);
+		
+		datumVreme = new GregorianCalendar();
+		
+		String datum = String.valueOf(datumVreme.get(GregorianCalendar.DAY_OF_MONTH)) + "." +
+				String.valueOf(datumVreme.get(GregorianCalendar.MONTH)) + "." +
+				String.valueOf(datumVreme.get(GregorianCalendar.YEAR)) + ".";
+		
+		String vreme = String.valueOf(datumVreme.get(GregorianCalendar.HOUR_OF_DAY)) + ":" +
+				(datumVreme.get(GregorianCalendar.MINUTE) < 10 ? 
+						"0" + String.valueOf(datumVreme.get(GregorianCalendar.MINUTE)) :
+							String.valueOf(datumVreme.get(GregorianCalendar.MINUTE)));
+		
+		ArrayList<String> pom = new ArrayList<>(5);
+		pom.add(ime);
+		pom.add(prezime);
+		pom.add(datum);
+		pom.add(vreme);
+		pom.add(iznos);
+		
+		kesirajUplatu(pom);
 		
 		try (PrintWriter out = 
 				new PrintWriter(
@@ -233,7 +250,7 @@ public class ClientHandler extends Thread {
 								new FileWriter(ime + prezime + (new GregorianCalendar()).getTimeInMillis() + ".txt")))) {
 						
 			out.print("Ime: " + ime + "\nPrezime: " + prezime + "\nAdresa: " + adresa + 
-					"\nDatum i vreme uplate: " + (new GregorianCalendar()).getTime() + "\nIznos: " + iznos);
+					"\nDatum i vreme uplate: " + String.valueOf(datumVreme.getTime()) + "\nIznos: " + iznos);
 
 		} catch (IOException e) {
 			e.printStackTrace();		
@@ -342,9 +359,8 @@ public class ClientHandler extends Thread {
 				brKarticeIsValid = false,
 				emailIsValid = false;
 		
-		while (!usernameIsValid) {
-			try {
-				
+		try {
+			while (!usernameIsValid) {
 				klijentOutput.println("Unesite username: ");
 				username = klijentInput.readLine();
 				
@@ -356,17 +372,15 @@ public class ClientHandler extends Thread {
 					klijentOutput.println("Username koji ste uneli je zauzet!");
 					continue;
 				}
-				
 				usernameIsValid = true;
-				
-			} catch (IOException e) {
-				e.printStackTrace();
-			}			
-		}
+			}
+		} catch (IOException e) {
+			klijentOutput.println("Greska prilikom unosa!");
+			return;
+		}			
 		
-		while (!passIsValid) {
-			try {
-				
+		try {
+			while (!passIsValid) {
 				klijentOutput.println("Unesite password: ");
 				pass = klijentInput.readLine();
 				if (pass == null || pass.contains(" ") || pass.isBlank()) {
@@ -374,15 +388,14 @@ public class ClientHandler extends Thread {
 					continue;
 				}
 				passIsValid = true;
-				
-			} catch (IOException e) {
-				e.printStackTrace();
-			}			
-		}
+			}
+		} catch (IOException e) {
+			klijentOutput.println("Greska prilikom unosa!");
+			return;
+		}			
 		
-		while (!imeIsValid) {
-			try {
-				
+		try {
+			while (!imeIsValid) {
 				klijentOutput.println("Unesite ime: ");
 				ime = klijentInput.readLine();
 				if (ime == null || ime.contains(" ") || ime.isBlank()) {
@@ -390,15 +403,14 @@ public class ClientHandler extends Thread {
 					continue;
 				}
 				imeIsValid = true;
-				
-			} catch (IOException e) {
-				e.printStackTrace();
-			}			
-		}
+			}
+		} catch (IOException e) {
+			klijentOutput.println("Greska prilikom unosa!");
+			return;
+		}			
 		
-		while (!prezimeIsValid) {
-			try {
-				
+		try {
+			while (!prezimeIsValid) {
 				klijentOutput.println("Unesite prezime: ");
 				prezime = klijentInput.readLine();
 				if (prezime == null || ime.contains(" ") || prezime.isBlank()) {
@@ -406,15 +418,14 @@ public class ClientHandler extends Thread {
 					continue;
 				}
 				prezimeIsValid = true;	
-				
-			} catch (IOException e) {
-				e.printStackTrace();
-			}			
-		}
+			}
+		} catch (IOException e) {
+			klijentOutput.println("Greska prilikom unosa!");
+			return;
+		}			
 		
-		while (!jmbgIsValid) {
-			try {
-				
+		try {
+			while (!jmbgIsValid) {
 				klijentOutput.println("Unesite jmbg: ");
 				jmbg = klijentInput.readLine();
 				if (jmbg == null || jmbg.contains(" ") || jmbg.isBlank()) {
@@ -422,15 +433,14 @@ public class ClientHandler extends Thread {
 					continue;
 				}
 				jmbgIsValid = true;
-				
-			} catch (IOException e) {
-				e.printStackTrace();
-			}			
-		}
+			}
+		} catch (IOException e) {
+			klijentOutput.println("Greska prilikom unosa!");
+			return;
+		}			
 		
-		while (!brKarticeIsValid) {
-			try {
-				
+		try {
+			while (!brKarticeIsValid) {
 				klijentOutput.println("Unesite broj kartice u formatu XXXX-XXXX-XXXX-XXXX: ");
 				brKartice = klijentInput.readLine();
 				if (brKartice == null || !brKartice.matches("\\d{4}-\\d{4}-\\d{4}-\\d{4}")) {
@@ -442,15 +452,14 @@ public class ClientHandler extends Thread {
 					continue;
 				}
 				brKarticeIsValid = true;
-				
-			} catch (IOException e) {
-				e.printStackTrace();
-			}			
-		}
+			}
+		} catch (IOException e) {
+			klijentOutput.println("Greska prilikom unosa!");
+			return;
+		}			
 		
-		while (!emailIsValid) {
-			try {
-				
+		try {
+			while (!emailIsValid) {
 				klijentOutput.println("Unesite email: ");
 				email = klijentInput.readLine();
 				if (email == null || email.contains(" ") || email.isBlank()) {
@@ -458,11 +467,11 @@ public class ClientHandler extends Thread {
 					continue;
 				}
 				emailIsValid = true;
-				
-			} catch (IOException e) {
-				e.printStackTrace();
-			}			
-		}
+			}
+		} catch (IOException e) {
+			klijentOutput.println("Greska prilikom unosa!");
+			return;
+		}			
 		
 		klijentOutput.println("Uspesno ste se registrovali!");
 		
@@ -482,10 +491,10 @@ public class ClientHandler extends Thread {
  		
 	private void azurirajBazuKorisnika(ArrayList<String> podaci) {
 		
-		try (ObjectOutputStream out = new ObjectOutputStream(
-				new BufferedOutputStream(new FileOutputStream("registrovaniKorisnici", true)))) {
+		try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("registrovaniKorisnici.txt", true)))) {
 			
-			out.writeObject(podaci);
+			out.println(podaci.get(0) + ";" + podaci.get(1) + ";" + podaci.get(2) + ";" + podaci.get(3) +
+					podaci.get(4) + ";" + podaci.get(5) + podaci.get(6));
 			
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -501,9 +510,8 @@ public class ClientHandler extends Thread {
 		boolean usernameIsValid = false,
 				passIsValid = false;
 		
-		while (!usernameIsValid) {
-			try {
-				
+		try {
+			while (!usernameIsValid) {
 				klijentOutput.println("Unesite username: ");
 				username = klijentInput.readLine();
 				if (username == null || username.contains(" ") || username.isBlank()) {
@@ -515,15 +523,14 @@ public class ClientHandler extends Thread {
 					continue;
 				}
 				usernameIsValid = true;
-				
-			} catch (IOException e) {
-				e.printStackTrace();
-			}			
-		}
+			}
+		} catch (IOException e) {
+			klijentOutput.println("Greska prilikom unosa!");
+			return;
+		}			
 		
-		while (!passIsValid) {
-			try {
-				
+		try {
+			while (!passIsValid) {
 				klijentOutput.println("Unesite password: ");
 				pass = klijentInput.readLine();
 				if (pass == null || pass.contains(" ") || pass.isBlank()) {
@@ -535,69 +542,58 @@ public class ClientHandler extends Thread {
 					continue;
 				}
 				passIsValid = true;
-				
-			} catch (IOException e) {
-				e.printStackTrace();
-			}			
-		}
+			}
+		} catch (IOException e) {
+			klijentOutput.println("Greska prilikom unosa!");
+			return;
+		}			
 		
 		prijavljen = true;
 		klijentOutput.println("Uspesno ste se prijavili!");
 		
 	}
 
-	@SuppressWarnings("unchecked")
 	private boolean passOdgovaraUsername(String username, String pass) {
-		try (ObjectInputStream in = new ObjectInputStream(
-				new BufferedInputStream(
-						new FileInputStream("registrovaniKorisnici")))) {
+		try (BufferedReader in = new BufferedReader(new FileReader("registrovaniKorisnici.txt"))) {
 			
-			ArrayList<String> pom = null;
+			String pom;
+			String[] pomNiz;
 			
-			while (true) {
-				try {
-					
-					pom = (ArrayList<String>)in.readObject();
-					if (pom.get(0).equals(username) && pom.get(1).equals(pass)) {
-						return true;
-					} 
-					return false;
-					
-				} catch (EOFException e) {
-					
-				}catch (ClassNotFoundException e) {
-					e.printStackTrace();
+			while ((pom = in.readLine()) != null) {
+				
+				pomNiz = pom.split(";");
+				
+				if (pomNiz[0].equals(username)) {
+						if (pomNiz[1].equals(pass)) {
+							return true;
+						}
+						return false;
 				}
+		
 			}
+			
+		} catch (FileNotFoundException e) {
 			
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		return false;
+		return false;	
 	}
 
-	@SuppressWarnings("unchecked")
 	private boolean usernamePostoji(String username) {		
-		try (ObjectInputStream in = new ObjectInputStream(
-				new BufferedInputStream(
-						new FileInputStream("registrovaniKorisnici")))) {
+		try (BufferedReader in = new BufferedReader(new FileReader("registrovaniKorisnici.txt"))) {
+		
+			String pom;
+			String[] pomNiz;
 			
-			ArrayList<String> pom = null;
-			
-			while (true) {
-				try {
-					
-					pom = (ArrayList<String>)in.readObject();
-					if (pom.get(0).equals(username)) {
+			while ((pom = in.readLine()) != null) {
+				
+				pomNiz = pom.split(";");
+				
+				if (pomNiz[0].equals(username)) {
 						return true;
-					}
-					
-				} catch (EOFException e) {
-					return false;
-				}catch (ClassNotFoundException e) {
-					e.printStackTrace();
-					return false;
 				}
+		
 			}
 			
 		} catch (FileNotFoundException e) {
@@ -606,6 +602,72 @@ public class ClientHandler extends Thread {
 			e.printStackTrace();
 		}
 		return false;		
+	}
+	
+	private void pregledTransakcija() {
+		
+		List<ArrayList<String>> uplate = new LinkedList<>();
+		ArrayList<String> pomLista = null;
+		String pom = null;
+		String[] pomNiz = null;
+		
+		try (BufferedReader in = new BufferedReader(new FileReader("kesiraneUplate.txt"))) {
+						
+			while ((pom = in.readLine()) != null) {
+				
+				pomNiz = pom.split(";");
+				pomLista = new ArrayList<>(5);
+				
+				pomLista.add(pomNiz[0]);
+				pomLista.add(pomNiz[1]);
+				pomLista.add(pomNiz[2]);
+				pomLista.add(pomNiz[3]);
+				pomLista.add(pomNiz[4]);
+				
+				uplate.add(pomLista);
+				
+			}
+			
+		} catch (FileNotFoundException e) {
+
+			klijentOutput.println("Jos uvek nema nijedne uplate.");
+			return;
+			
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+		ListIterator<ArrayList<String>> iterator = uplate.listIterator(uplate.size());
+		int brojac = 1;
+		
+		klijentOutput.println();
+		
+		while (brojac <= 10 && iterator.hasPrevious()) {
+			
+			pomLista = iterator.previous();			
+			klijentOutput.println("Ime: " + pomLista.get(0));
+			klijentOutput.println("Prezime: " + pomLista.get(1));
+			klijentOutput.println("Datum: " + pomLista.get(2));
+			klijentOutput.println("Vreme: " + pomLista.get(3));
+			klijentOutput.println("Iznos: " + pomLista.get(4) + " din");
+			klijentOutput.println();
+			brojac++;
+			
+		}
+		
+	}
+	
+	private void kesirajUplatu(ArrayList<String> pom) {
+		
+		try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("kesiraneUplate.txt", true)))) {
+			
+			out.println(pom.get(0) + ";" + pom.get(1) + ";" + pom.get(2) + ";" 
+					+ pom.get(3) + ";" + pom.get(4));
+			
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
 	}
 	
 }
