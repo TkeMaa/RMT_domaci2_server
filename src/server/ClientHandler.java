@@ -95,7 +95,7 @@ public class ClientHandler extends Thread {
 	
 	private void meni() {
 		
-		klijentOutput.println("Izaberite opciju(1-5): ");
+		klijentOutput.println("Izaberite opciju(1-6): ");
 		klijentOutput.println("1. Uplata humanitarne pomoci");
 		klijentOutput.println("2. Registruj se");
 		klijentOutput.println("3. Prijavi se");
@@ -229,6 +229,9 @@ public class ClientHandler extends Thread {
 				}
 				iznosIsValid = true;
 			}
+		} catch (NumberFormatException e) {
+			klijentOutput.println("Iznos koji ste uneli nije validan!");
+			return;
 		} catch (IOException e) {
 			klijentOutput.println("Greska prilikom unosa!");
 			return;
