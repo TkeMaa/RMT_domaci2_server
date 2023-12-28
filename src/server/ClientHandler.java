@@ -28,6 +28,7 @@ public class ClientHandler extends Thread {
 	final File ukupnaSredstva = new File("ukupna_sredstva.txt");
 	
 	boolean prijavljen = false;
+	String korisnickoIme = null;
 	
 	public ClientHandler(Socket soketZaKomunikaciju) {
 		this.soketZaKomunikaciju = soketZaKomunikaciju;
@@ -77,8 +78,8 @@ public class ClientHandler extends Thread {
 						klijentOutput.println("Morate biti prijavljeni da biste imali pristup ovoj opciji!");
 					}
 					break;
-					case "6":						
-						klijentOutput.println("***izlaz***");
+					case "6":							
+						klijentOutput.println("*** izlaz ***");
 						soketZaKomunikaciju.close();
 						return;
 					default:
@@ -167,46 +168,57 @@ public class ClientHandler extends Thread {
 			return;
 		}			
 		
-		try {
-			while (!brKarticeIsValid) {
-				klijentOutput.println("Unesite broj kartice u formatu XXXX-XXXX-XXXX-XXXX: ");
-				brKartice = klijentInput.readLine();
-				if (brKartice == null || !brKartice.matches("\\d{4}-\\d{4}-\\d{4}-\\d{4}")) {
-					klijentOutput.println("Neispravan format kartice!");
-					continue;
-				}
-				if (!brKarticePostoji(brKartice)) {
-					klijentOutput.println("Kartica ne postoji u bazi!");
-					continue;
-				}
-				brKarticeIsValid = true;
-			}
-		} catch (IOException e) {
-			klijentOutput.println("Greska prilikom unosa!");
-			return;
-		}			
-		
 		if (!prijavljen) {
+			
 			try {
-				while (!cvvIsValid) {
-					klijentOutput.println("Unesite CVV broj(trocifren broj): ");
-					cvv = klijentInput.readLine();
-					if (cvv == null || !cvv.matches("\\d{3}")) {
-						klijentOutput.println("Niste ispravno uneli CVV!");
+				while (!brKarticeIsValid) {
+					klijentOutput.println("Unesite broj kartice u formatu XXXX-XXXX-XXXX-XXXX: ");
+					brKartice = klijentInput.readLine();
+					if (brKartice == null || !brKartice.matches("\\d{4}-\\d{4}-\\d{4}-\\d{4}")) {
+						klijentOutput.println("Neispravan format kartice!");
 						continue;
 					}
-					if (!cvvOdgovaraBrKartice(cvv, brKartice)) {
-						klijentOutput.println("CVV se ne poklapa sa unetim brojem kartice!");
+					if (!brKarticePostoji(brKartice)) {
+						klijentOutput.println("Kartica ne postoji u bazi!");
 						continue;
 					}
-					cvvIsValid = true;
+					brKarticeIsValid = true;
 				}
 			} catch (IOException e) {
 				klijentOutput.println("Greska prilikom unosa!");
 				return;
-			}			
+			}
+			
+		} else {
+			
+			brKartice = vratiBrKarticeNaOsnovuUsername(korisnickoIme);
+			
+			if (brKartice == null) {
+				klijentOutput.println("Doslo je do greske prilikom ucitavanja vase kartice.");
+				return;
+			}
+			
 		}
-		
+			
+		try {
+			while (!cvvIsValid) {
+				klijentOutput.println("Unesite CVV broj(trocifren broj): ");
+				cvv = klijentInput.readLine();
+				if (cvv == null || !cvv.matches("\\d{3}")) {
+					klijentOutput.println("Niste ispravno uneli CVV!");
+					continue;
+				}
+				if (!cvvOdgovaraBrKartice(cvv, brKartice)) {
+					klijentOutput.println("CVV se ne poklapa sa brojem kartice!");
+					continue;
+				}
+				cvvIsValid = true;
+			}
+		} catch (IOException e) {
+			klijentOutput.println("Greska prilikom unosa!");
+			return;
+		}
+			
 		try {
 			while (!iznosIsValid) {
 				klijentOutput.println("Unesite iznos: ");
@@ -254,10 +266,36 @@ public class ClientHandler extends Thread {
 
 		} catch (IOException e) {
 			e.printStackTrace();		
-		}						
+		}
+		
+		klijentOutput.println("Uspesno ste izvrsili uplatu!");
 	
 	}
 	
+	private String vratiBrKarticeNaOsnovuUsername(String username) {
+		try (BufferedReader in = new BufferedReader(new FileReader("registrovaniKorisnici.txt"))) {
+			
+			String pom;
+			String[] pomNiz;
+			
+			while ((pom = in.readLine()) != null) {
+				
+				pomNiz = pom.split(";");
+				
+				if (pomNiz[0].equals(username)) {
+						return pomNiz[5];
+				}
+		
+			}
+			
+		} catch (FileNotFoundException e) {
+			
+		}catch (IOException e) {
+			e.printStackTrace();
+		}
+		return null;	
+	}
+
 	private boolean brKarticePostoji(String brKartice) {		
 		try (BufferedReader in = new BufferedReader(new FileReader("BazaKarticeCVV.txt"))) {
 			
@@ -493,8 +531,8 @@ public class ClientHandler extends Thread {
 		
 		try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("registrovaniKorisnici.txt", true)))) {
 			
-			out.println(podaci.get(0) + ";" + podaci.get(1) + ";" + podaci.get(2) + ";" + podaci.get(3) +
-					podaci.get(4) + ";" + podaci.get(5) + podaci.get(6));
+			out.println(podaci.get(0) + ";" + podaci.get(1) + ";" + podaci.get(2) + ";" + podaci.get(3) + ";" +
+					podaci.get(4) + ";" + podaci.get(5) + ";" + podaci.get(6));
 			
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -549,6 +587,8 @@ public class ClientHandler extends Thread {
 		}			
 		
 		prijavljen = true;
+		korisnickoIme = username;
+		
 		klijentOutput.println("Uspesno ste se prijavili!");
 		
 	}
@@ -611,8 +651,8 @@ public class ClientHandler extends Thread {
 		String pom = null;
 		String[] pomNiz = null;
 		
-		try (BufferedReader in = new BufferedReader(new FileReader("kesiraneUplate.txt"))) {
-						
+		try (BufferedReader in = new BufferedReader(new FileReader("kesiraneUplate.txt"))) {		
+			
 			while ((pom = in.readLine()) != null) {
 				
 				pomNiz = pom.split(";");
@@ -640,11 +680,12 @@ public class ClientHandler extends Thread {
 		ListIterator<ArrayList<String>> iterator = uplate.listIterator(uplate.size());
 		int brojac = 1;
 		
-		klijentOutput.println();
+		klijentOutput.println("Najskorije uplate:\n");
 		
 		while (brojac <= 10 && iterator.hasPrevious()) {
 			
-			pomLista = iterator.previous();			
+			pomLista = iterator.previous();	
+			klijentOutput.println(brojac + ".");
 			klijentOutput.println("Ime: " + pomLista.get(0));
 			klijentOutput.println("Prezime: " + pomLista.get(1));
 			klijentOutput.println("Datum: " + pomLista.get(2));
